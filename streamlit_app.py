@@ -5,6 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 
 
 
+
 def add_sequence(df_key, column, sequence_type, start, increment):
     st.write("test")
 

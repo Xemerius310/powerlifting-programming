@@ -17,5 +17,21 @@ url = "https://docs.google.com/spreadsheets/d/1tqoOysKmRnTTbE6mBIpnEuPlM3Y2XYZug
 
 conn2 = st.connection("gsheets", type = GSheetsConnection)
 
-data2 = conn2.read(spreadsheet = url)
-st.dataframe(data2)
+actual_progression = conn2.read(spreadsheet = url)
+st.dataframe(actual_progression)
+
+RPE_to_pct_df = pd.read_csv("data/DDS_RPE-to-percent1RM.csv")
+
+def RPE_to_pct(reps, RPE, interpolation_factor):
+    potential_reps = reps + (10 - RPE)
+    RPE_to_pct_df["interpolated"] = RPE_to_pct_df["DDS_low"] * (1-interpolation_factor) + RPE_to_pct_df["DDS_high"] * interpolation_factor
+
+    st.dataframe(RPE_to_pct_df)
+    return RPE_to_pct_df.loc[RPE_to_pct_df["reps_at_RPE_10"] == potential_reps, "interpolated"]
+
+
+
+test = RPE_to_pct(6,7,1)
+
+
+st.write(test)
