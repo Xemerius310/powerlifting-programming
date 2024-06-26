@@ -4,21 +4,33 @@ import numpy as np
 from streamlit_gsheets import GSheetsConnection
 
 
-url = "https://docs.google.com/spreadsheets/d/1KsKJScBAaXRe723z2yA55rUVXVnVlB7hG-ZzYdnF35A/edit?usp=sharing"
+# url = "https://docs.google.com/spreadsheets/d/1KsKJScBAaXRe723z2yA55rUVXVnVlB7hG-ZzYdnF35A/edit?usp=sharing"
 
-conn = st.connection("gsheets", type = GSheetsConnection)
+# conn = st.connection("gsheets", type = GSheetsConnection)
 
-data = conn.read(spreadsheet = url)
-st.dataframe(data)
-
-
-url = "https://docs.google.com/spreadsheets/d/1tqoOysKmRnTTbE6mBIpnEuPlM3Y2XYZugWJdeYbtI-Q/edit?usp=sharing"
+# data = conn.read(spreadsheet = url)
+# st.dataframe(data)
 
 
-conn2 = st.connection("gsheets", type = GSheetsConnection)
+# url = "https://docs.google.com/spreadsheets/d/1tqoOysKmRnTTbE6mBIpnEuPlM3Y2XYZugWJdeYbtI-Q/edit?usp=sharing"
 
-actual_progression = conn2.read(spreadsheet = url)
-st.dataframe(actual_progression)
+
+# conn2 = st.connection("gsheets", type = GSheetsConnection)
+
+# actual_progression = conn2.read(spreadsheet = url)
+# st.dataframe(actual_progression)
+
+
+
+
+database = "https://docs.google.com/spreadsheets/d/13hU8DbvujqlHDuvQU_fTmBNof3Y1cgI6Kq1fD97_NDE/edit?gid=0#gid=0"
+
+conn3 = st.connection("gsheets", type = GSheetsConnection)
+test = conn3.read(worksheet = "Users")
+st.dataframe(test)
+
+
+
 
 RPE_to_pct_df = pd.read_csv("data/DDS_RPE-to-percent1RM.csv")
 
