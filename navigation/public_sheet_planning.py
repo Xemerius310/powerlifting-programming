@@ -4,6 +4,8 @@ import numpy as np
 from streamlit_gsheets import GSheetsConnection
 
 
+
+
 # defining the RPE to percentage of 1RM conversion function
 
 RPE_to_pct_df = pd.read_csv("data/DDS_RPE-to-percent1RM.csv")
@@ -20,6 +22,23 @@ def RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor = 1.0):
 
 
 
+def round_to_multiple(number, multiple):
+    """
+    Rounds a given number to the nearest specified multiple.
+
+    Parameters:
+    - number (float or int): The number to be rounded.
+    - multiple (float or int): The multiple to round the number to.
+
+    Returns:
+    - float: The number rounded to the nearest specified multiple.
+    """
+    if multiple == 0:
+        return number
+    return round(number / multiple) * multiple
+
+
+round_multiple = st.number_input(label = "round weights to nearest multiple of", value = 2.5)
 
 metadata_spreadsheet_url = st.text_input(label = "metadata spreadsheet url")
 
@@ -114,12 +133,17 @@ if metadata_spreadsheet_url:
                              .drop(columns = ["sets"])
                              .merge(variations_df, left_on = "exercise", right_on = "variation")
                              .drop(columns = ["variation"])
+                             .rename(columns = {"weight": "weight_actual"})
+                             .sort_values(by = ["date", "set_number"])
     )
+
+    st.write("## Actual Progression test")
+    st.write(actual_progression_df)
 
     actual_progression_df["pct_load_planned"] = actual_progression_df.apply(lambda row: RPE_to_pct(row["reps_planned"], row["RPE_planned"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
 
     # calculate e1RM and mean e1RM for actual progression
-    actual_progression_df["e1RM"] = actual_progression_df.apply(lambda row: row["weight"] / RPE_to_pct(row["reps_actual"], row["RPE_actual"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
+    actual_progression_df["e1RM"] = actual_progression_df.apply(lambda row: row["weight_actual"] / RPE_to_pct(row["reps_actual"], row["RPE_actual"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
     actual_progression_df["mean_e1RM"] = actual_progression_df.groupby(["date", "exercise"])["e1RM"].transform("mean")
 
     # calculate potential reps (actual progression and planned)
@@ -130,34 +154,26 @@ if metadata_spreadsheet_url:
     actual_progression_df["mean_potential_reps_planned"] = actual_progression_df.groupby(["date", "exercise"])["potential_reps_planned"].transform("mean")
     actual_progression_df["mean_potential_reps_actual"] = actual_progression_df.groupby(["date", "exercise"])["potential_reps_actual"].transform("mean")
 
-    # actual_progression_df["mean_weight_planned"] = actual_progression_df.groupby(["date", "exercise"])["weight_planned"].transform("mean")
-    actual_progression_df["mean_weight_actual"] = actual_progression_df.groupby(["date", "exercise"])["weight"].transform("mean")
+    actual_progression_df["mean_weight_actual"] = actual_progression_df.groupby(["date", "exercise"])["weight_actual"].transform("mean")
 
 
     actual_progression_df = actual_progression_df.merge(override_1RM_df, on = ["date", "base_lift"], how = "left")
 
 
 
-    def adjust_planned_1RM(row):
-        # difference between actual and planned potential reps is greater than .5 in either direction
-        if abs(row["mean_potential_reps_actual"] - row["mean_potential_reps_planned"]) > 0.5 \
-            or abs(row["mean_weight_actual"] - row["mean_weight_planned"]) > 1.25:
-            return True
-        else:
-            return False
     
     actual_progression_df["planned_1RM"] = pd.NA
-    actual_progression_df["planned_weight"] = pd.NA
+    actual_progression_df["weight_planned"] = pd.NA
 
 
 
     for base_lift, base_lift_df in actual_progression_df.groupby("base_lift"):
 
-        # get all relevant dates uniquely, dates from the actual progression
+        # get all relevant dates uniquely, dates from the program
         # and dates on which this specific base lift 1RM is overridden
         base_lift_override_1RM_df = override_1RM_df.loc[override_1RM_df["base_lift"] == base_lift]
-        unique_dates = np.sort(pd.concat([base_lift_df["date"], base_lift_override_1RM_df["date"]]).unique())
-
+        unique_dates = np.sort(pd.concat([base_lift_progression.loc[base_lift_progression["base_lift"] == base_lift, "date"], base_lift_override_1RM_df["date"]]).unique())
+       
         actual_progression_df.set_index(["date", "base_lift"], inplace = True)
 
         # construct dataframe to store the planned progression for a given base lift
@@ -185,31 +201,35 @@ if metadata_spreadsheet_url:
             # write the planned 1RM in the actual progression dataframe (for the base lift)
             base_lift_df.loc[base_lift_df["date"] == date, "planned_1RM"] = planned_base_lift_progression.at[i, "planned_1RM"]
             # then use the planned 1RM to calculate the planned weight
-            base_lift_df.loc[base_lift_df["date"] == date, "planned_weight"] = base_lift_df.loc[base_lift_df["date"] == date, "planned_1RM"] * base_lift_df.loc[base_lift_df["date"] == date, "pct_load_planned"]
+            base_lift_df.loc[base_lift_df["date"] == date, "weight_planned"] = base_lift_df.loc[base_lift_df["date"] == date, "planned_1RM"] * base_lift_df.loc[base_lift_df["date"] == date, "pct_load_planned"]
+            # add column for weights rounded to the nearest multiple
+            base_lift_df.loc[base_lift_df["date"] == date, "weight_planned_rounded"] = base_lift_df.loc[base_lift_df["date"] == date, "weight_planned"].apply(lambda x: round_to_multiple(x, round_multiple))
 
-            # make sure date is in the actual progression dataframe, if not the date came from the override 1RM dataframe and has
+            # make sure date is in the plan, if not the date came from the override 1RM dataframe and has
             # been handled above
-            if date in base_lift_df["date"].tolist():
+            if date in base_lift_progression.loc[base_lift_progression["base_lift"] == base_lift]["date"].tolist():
                 # subset the actual progression dataframe for the base lift appropriately
                 # only use rows for the current date and ensure that the row should be used for 1RM planning
                 base_lift_df_subset = base_lift_df.loc[(base_lift_df["date"] == date) & (base_lift_df["use_for_1RM_planning"] == True)]
-                st.write(base_lift_df_subset)
+                # st.write(base_lift_df_subset)
 
                 mean_potential_reps_actual = base_lift_df_subset["potential_reps_actual"].mean()
                 mean_potential_reps_planned = base_lift_df_subset["potential_reps_planned"].mean()
 
+                mean_weight_actual = base_lift_df_subset["weight_actual"].mean()
+                mean_weight_planned = base_lift_df_subset["weight_planned_rounded"].mean()
 
-                st.write(f"date: {date}")
-                st.write(f"mean_potential_reps_actual: {mean_potential_reps_actual}")
-                st.write(f"mean_potential_reps_planned: {mean_potential_reps_planned}")
                 
+                # check if RPE or weight is off by more than 0.5 or 1.25 kg respectively
                 if (
                     abs(mean_potential_reps_actual - mean_potential_reps_planned) > 0.5
+                    or abs(mean_weight_actual - mean_weight_planned) > 1.25
                     ):
                     planned_base_lift_progression.at[i, "adjust_planned_1RM_using_e1RM"] = True
                 else:
                     planned_base_lift_progression.at[i, "adjust_planned_1RM_using_e1RM"] = False
 
+                # writing the mean e1RM into the base lift progression dataframe
                 if base_lift_df_subset.empty: 
                     # this is empty if all exercises performed on this day are not to be used for 1RM planning
                     # if this is the case just use the mean e1RM from those exercises
@@ -221,9 +241,8 @@ if metadata_spreadsheet_url:
                 mean_e1RM = planned_base_lift_progression.at[i, "mean_e1RM"]
 
                 # update planned 1RM
-                if i != len(unique_dates) - 1:
+                if i != len(unique_dates) - 1: # if not the last date
                     if planned_base_lift_progression.at[i, "adjust_planned_1RM_using_e1RM"] == True:
-                        st.write(f"at date {date} adjusting planned 1RM using e1RM: {mean_e1RM}")
                         planned_base_lift_progression.at[i+1, "planned_1RM"] = mean_e1RM
                     else:
                         days_since_last_day = (unique_dates[i+1] - unique_dates[i]).astype("timedelta64[D]").astype(int)
