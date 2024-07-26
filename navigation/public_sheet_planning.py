@@ -6,41 +6,16 @@ from streamlit_gsheets import GSheetsConnection
 
 
 
-# defining the RPE to percentage of 1RM conversion function
-
-RPE_to_pct_df = pd.read_csv("data/DDS_RPE-to-percent1RM.csv")
-
-# interpolation factor is the factor by which the low and high DDS values will be interpolated
-# variation_adj_factor scales the percentage of 1RM based on the variation
-def RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor = 1.0):
-    potential_reps = reps + (10 - RPE)
-    RPE_to_pct_df["interpolated"] = (
-        variation_adj_factor * (RPE_to_pct_df["DDS_low"] * (1-interpolation_factor) + RPE_to_pct_df["DDS_high"] * interpolation_factor)
-    )
-
-    return float(RPE_to_pct_df.loc[RPE_to_pct_df["reps_at_RPE_10"] == potential_reps, "interpolated"])
+RPE_to_pct = st.session_state["RPE_to_pct_fun"]
+round_to_multiple = st.session_state["round_to_multiple_fun"]
 
 
 
-def round_to_multiple(number, multiple):
-    """
-    Rounds a given number to the nearest specified multiple.
+if "round_multiple" in st.session_state:
+    round_multiple = st.session_state["round_multiple"]
 
-    Parameters:
-    - number (float or int): The number to be rounded.
-    - multiple (float or int): The multiple to round the number to.
-
-    Returns:
-    - float: The number rounded to the nearest specified multiple.
-    """
-    if multiple == 0:
-        return number
-    return round(number / multiple) * multiple
-
-
-round_multiple = st.number_input(label = "round weights to nearest multiple of", value = 2.5)
-
-metadata_spreadsheet_url = st.text_input(label = "metadata spreadsheet url")
+if "metadata_spreadsheet_url" in st.session_state:
+    metadata_spreadsheet_url = st.session_state["metadata_spreadsheet_url"]
 
 if metadata_spreadsheet_url:
 
@@ -79,6 +54,7 @@ if metadata_spreadsheet_url:
     # variations
     variations_conn = st.connection("gsheets", type = GSheetsConnection)
     variations_df = variations_conn.read(spreadsheet = metadata_df.loc["variations", "url"])
+    st.session_state["variations_df"] = variations_df
 
     st.markdown("## Variations")
     st.dataframe(variations_df)
@@ -98,6 +74,7 @@ if metadata_spreadsheet_url:
 
     increments = variations_df[["base_lift", "microcycle_increment"]].drop_duplicates()
     increments["daily_increment"] = increments["microcycle_increment"] / 7
+    st.session_state["increments"] = increments
 
     st.markdown("## Increments")
     st.write(increments)
@@ -137,9 +114,7 @@ if metadata_spreadsheet_url:
                              .sort_values(by = ["date", "set_number"])
     )
 
-    st.write("## Actual Progression test")
-    st.write(actual_progression_df)
-
+    # calculate the planned percentage of 1RM given the planned reps and RPE
     actual_progression_df["pct_load_planned"] = actual_progression_df.apply(lambda row: RPE_to_pct(row["reps_planned"], row["RPE_planned"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
 
     # calculate e1RM and mean e1RM for actual progression
@@ -160,12 +135,12 @@ if metadata_spreadsheet_url:
     actual_progression_df = actual_progression_df.merge(override_1RM_df, on = ["date", "base_lift"], how = "left")
 
 
-
-    
+    # add columns for planned 1RM and weight
     actual_progression_df["planned_1RM"] = pd.NA
     actual_progression_df["weight_planned"] = pd.NA
 
-
+    # create empty dataframe to which all planned base lift progressions will be appended
+    all_planned_base_lift_progressions = pd.DataFrame()
 
     for base_lift, base_lift_df in actual_progression_df.groupby("base_lift"):
 
@@ -251,62 +226,53 @@ if metadata_spreadsheet_url:
 
             
             actual_progression_df.update(planned_base_lift_progression.set_index(["date", "base_lift"]))
-
-            # actual_progression_bl_date = actual_progression_df.loc[(actual_progression_df["date"] == date) & (actual_progression_df["base_lift"] == base_lift)]
-            # actual_progression_bl_date["planned_1RM"] = planned_base_lift_progression.at[i, "planned_1RM"]
-
-
-            #     planned_base_lift_progression.at[date, "override_1RM"] = base_lift_df.loc[base_lift_df["date"] == date, "override_1RM"].values[0]
-            #     planned_base_lift_progression.at[date, "planned_1RM"] = base_lift_df.loc[base_lift_df["date"] == date, "1RM"].values[0]
-            #     planned_base_lift_progression.at[date, "mean_e1RM"] = base_lift_df.loc[base_lift_df["date"] == date, "mean_e1RM"].values[0]
-            #     planned_base_lift_progression.at[date, "adjust_plan_using_e1RM"] = False
-
+            actual_progression_df["weight_planned"] = actual_progression_df.apply(lambda row: row["planned_1RM"] * row["pct_load_planned"], axis = 1)
+            actual_progression_df["weight_planned_rounded"] = actual_progression_df["weight_planned"].apply(lambda x: round_to_multiple(x, round_multiple))
 
 
         st.markdown(f"## planned {base_lift} progression")
         st.write(planned_base_lift_progression)
+        
+        all_planned_base_lift_progressions = pd.concat([all_planned_base_lift_progressions, planned_base_lift_progression])
 
         actual_progression_df.reset_index(inplace = True)
 
-        # for i, row in base_lift_df.iterrows():
-        #     if not pd.isna(row["override_1RM"]):
-        #         base_lift_df.at[i, "planned_1RM"] = row["override_1RM"]
-
-        #     base_lift_df.at[i, "planned_weight"] = base_lift_df.at[i, "planned_1RM"] * RPE_to_pct(row["reps_planned"], row["RPE_planned"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"])
 
         st.markdown(f"## {base_lift}")
         st.write(base_lift_df)
 
-    # actual_progression_df["adjust_planned_1RM"] = actual_progression_df.apply(adjust_planned_1RM, axis = 1)
+    st.session_state["all_planned_base_lift_progressions"] = all_planned_base_lift_progressions
     
+    actual_progression_df.sort_values(by = ["date", "base_lift", "set_number"], inplace = True)
+
     st.markdown("## Actual Progression")
     st.dataframe(actual_progression_df)
 
 
+    st.markdown("## all planned base lift progressions")
+    st.write(all_planned_base_lift_progressions)
 
 
+    program_df = (program_df
+                  .merge(variations_df, left_on = "exercise", right_on = "variation")              
+                  .drop(columns=['variation', 'microcycle_increment', 'use_for_1RM_planning'])
+                  .merge(all_planned_base_lift_progressions, on = ["date", "base_lift"], how = "left")
+    )
+
+    program_df["pct_load_planned"] = program_df.apply(lambda row: RPE_to_pct(row["reps"], row["RPE"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
+    program_df["weight_planned"] = program_df["planned_1RM"] * program_df["pct_load_planned"]
+    program_df["weight_planned_rounded"] = program_df["weight_planned"].apply(lambda x: round_to_multiple(x, round_multiple))
+
+    # sort by date and set_type
+    program_df["set_type_order"] = program_df["set_type"].replace({"top": 0, "backoff": 1, "backoff 1": 2, "backoff 2": 3})
+    program_df.sort_values(by = ["date", "set_type_order"], inplace = True)
+    program_df.drop(columns = ["set_type_order"], inplace = True)
     
 
-    
+    st.markdown("## Planned Progression")
+    st.write(program_df)
 
-    # base_lift_progression["planned_1RM"]
-
-
-   
-
-                #   .merge(override_1RM_df, on = ["date", "base_lift"], how = "left"))
-
-    # calculate planned weights based on prescribed reps and RPE in program_df
-    # program_df["planned_pct"] = (program_df
-    #                              .apply(lambda row: RPE_to_pct(row["reps"],
-    #                                                            row["RPE"],
-    #                                                            row["RPE-to-pct-1RM"],
-    #                                                            row["variation_pct_of_1RM"]),
-    #                                     axis = 1))
-
-    # st.markdown("## Planned Progression")
-    # st.write(program_df)
-
+    st.session_state["program_df"] = program_df
     
     # join actual_progression_df with variations_df on exercise
     # st.markdown("## Stats")
