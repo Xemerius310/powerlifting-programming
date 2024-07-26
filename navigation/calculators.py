@@ -7,7 +7,7 @@ round_to_multiple = st.session_state["round_to_multiple_fun"]
 round_multiple = st.session_state["round_multiple"]
 
 
-st.markdown("## weight recommendation calculator")
+st.markdown("## Weight Recommendation Calculator")
 
 if "variations_df" in st.session_state:
     variations_df = st.session_state.variations_df
@@ -53,7 +53,7 @@ with col1:
     reps = st.number_input("desired number of reps", min_value = 1, max_value = 30, value = 1)
 
 with col2:
-    RPE = st.number_input("desired RPE", min_value = 0, max_value = 10, value = 8)
+    RPE = st.number_input("desired RPE", min_value = 0.0, max_value = 10.0, value = 8.0, step = .5)
 
 with col3:
     oneRM = st.number_input("your 1RM", min_value = 0.0, value = default_1RM)
@@ -63,7 +63,7 @@ with col4:
     interpolation_factor = st.slider("rep capacity factor", min_value = 0.0, max_value = 1.0, value = 0.5)
 
 with col5:
-    variation_adj_factor = st.slider("variation adjustment factor", min_value = 0.0, value = 1.0)
+    variation_adj_factor = st.slider("variation adjustment factor", min_value = 0.0, max_value = 2.0, value = 1.0)
 
 recommended_weight = RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor) * oneRM
 
@@ -74,3 +74,37 @@ with col6:
 
 with col7:
     st.metric("recommended weight", round(recommended_weight, 2))
+
+
+st.divider()
+
+st.write(r"""
+        ### Instructions
+        This calculator will recommend a weight for a given number of reps and RPE you want to hit based on your 1RM.
+
+        If you have entered a metadata spreadsheet url in the sidebar, you can select a base lift from a dropdown menu.
+        The calculator will then use your planned 1RM for today for the selected base lift.
+
+        The calculator is basesd on two tables from the YouTube channel [Data Driven Strength](https://www.youtube.com/watch?v=cy4ZzbAdx9E)
+        that map RPE and reps to percentages of your 1RM. The tables are for exercises on which you have a high capacity
+        to perform reps and exercises on which you have a low capacity to perform reps.
+        
+        To match this calculator to your capacity to perform reps, you can adjust the rep capacity factor.
+        This yields a percentage of your 1RM that is interpolated between the low and high capacity values.
+        $$
+        DDS_{interpolated}(reps, RPE) = DDS_{low}(reps, RPE) \cdot (1 - \text{rep capacity factor}) + DDS_{high}(reps, RPE) \cdot \text{rep capacity factor}
+        $$
+        where $DDS_{low}(reps, RPE)$ and $DDS_{high}(reps, RPE)$ are percentages of your 1RM at the given number of reps and RPE
+        from the low or high capacity table.
+        The rep capacity factor determines how much the percentage of 1RM will be interpolated between the low and
+        high capacity values.
+
+        The formula used to calculate the recommended weight is:
+        $$
+        weight = DDS_{interpolated}(reps, RPE) \cdot \text{rep capacity factor} \cdot 1RM \cdot \text{variation adjustment factor}
+        $$
+        The variation adjustment factor scales the percentage of 1RM up or down if you do not perform the competition lift itself
+        but some variation in which you are weaker or stronger.
+
+""")
+

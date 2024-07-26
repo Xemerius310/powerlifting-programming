@@ -265,7 +265,7 @@ if metadata_spreadsheet_url:
 
     # sort by date and set_type
     program_df["set_type_order"] = program_df["set_type"].replace({"top": 0, "backoff": 1, "backoff 1": 2, "backoff 2": 3})
-    program_df.sort_values(by = ["date", "set_type_order"], inplace = True)
+    program_df.sort_values(by = ["date", "base_lift", "set_type_order"], inplace = True)
     program_df.drop(columns = ["set_type_order"], inplace = True)
     
 
@@ -274,21 +274,6 @@ if metadata_spreadsheet_url:
 
     st.session_state["program_df"] = program_df
     
-    # join actual_progression_df with variations_df on exercise
-    # st.markdown("## Stats")
-    # stats_df = (actual_progression_df
-    #             .merge(variations_df, left_on = "exercise", right_on = "variation")
-    #             .drop(columns=['variation']))
-
-    # # join stats_df with program_df on exercise, date, set_type
-    # stats_df = (stats_df
-    #             .merge(program_df,
-    #                    on = ["exercise", "date", "set_type"],
-    #                    suffixes = ("_actual", "_planned")))
-
-    # st.write(stats_df)
-
-    # stats_df["e1RM"] = stats_df.apply(lambda row: RPE_to_pct(row["reps"], row["RPE"], row[""], row["variation_adj_factor"]), axis = 1)
 
     
 

@@ -55,11 +55,13 @@ with st.sidebar:
 # defining pages
 #---------------------------------------------------------------------------------------------------
 
-public_sheet_planning_page = st.Page("navigation/public_sheet_planning.py", title = "Public Sheet Planning")
-mesocycle_creator_page = st.Page("navigation/mesocycle_creator.py", title = "Mesocycle Creator")
-oneRM_calculator_page = st.Page("navigation/calculators.py", title = "Calculators")
+public_sheet_planning_page = st.Page("navigation/public_sheet_planning.py", title = "📆 Public Sheet Planning")
+mesocycle_creator_page = st.Page("navigation/mesocycle_creator.py", title = "🛠️ Mesocycle Creator")
+oneRM_calculator_page = st.Page("navigation/calculators.py", title = "🧮 Calculators")
+athlete_view_page = st.Page("navigation/athlete_view.py", title = "🏋 Athlete View")
 
-navigation = st.navigation([public_sheet_planning_page, mesocycle_creator_page, oneRM_calculator_page])
+
+navigation = st.navigation([public_sheet_planning_page, mesocycle_creator_page, oneRM_calculator_page, athlete_view_page])
 navigation.run()
 
 
