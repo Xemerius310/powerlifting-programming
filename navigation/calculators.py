@@ -67,8 +67,10 @@ with col5:
 
 recommended_weight = RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor) * oneRM
 
-with col4:
+
+col6, col7 = st.columns(2)
+with col6:
     st.metric("recommended weight rounded", round_to_multiple(recommended_weight, round_multiple))
 
-with col5:
+with col7:
     st.metric("recommended weight", round(recommended_weight, 2))

@@ -1,4 +1,4 @@
 pandas
 numpy==1.26.4
-streamlit
+streamlit==1.36.0
 st-gsheets-connection
