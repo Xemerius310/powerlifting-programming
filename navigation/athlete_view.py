@@ -23,4 +23,9 @@ if "program_df" in st.session_state:
     date = np.datetime_as_string(next_training_day, unit = "D")
 
     st.header(f"Workout for {date}")
-    st.write(next_workout)
+
+    for base_lift, base_lift_df in next_workout.groupby("base_lift"):
+        st.subheader(base_lift)
+
+        base_lift_df.drop(columns = "base_lift", inplace = True)
+        st.dataframe(base_lift_df, hide_index = True)
