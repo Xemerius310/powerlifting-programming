@@ -13,7 +13,19 @@ if "variations_df" in st.session_state:
     variations_df = st.session_state.variations_df
     base_lifts = variations_df["base_lift"].unique()
 
-    base_lift = st.selectbox("select a base lift", base_lifts)
+    base_lift_col, variation_col = st.columns(2)
+
+    with base_lift_col:
+        base_lift = st.selectbox("select a base lift", base_lifts)
+
+    base_lift_variations = variations_df[variations_df["base_lift"] == base_lift]["variation"]
+    with variation_col:
+        variation = st.selectbox("select a variation", base_lift_variations)
+    
+    default_variation_adj_factor = variations_df[variations_df["variation"] == variation]["variation_pct_of_1RM"].values[0]
+else:
+    default_variation_adj_factor = 1.0
+
 
 if "increments" in st.session_state:
     increments = st.session_state.increments
@@ -63,7 +75,7 @@ with col4:
     interpolation_factor = st.slider("rep capacity factor", min_value = 0.0, max_value = 1.0, value = 0.5)
 
 with col5:
-    variation_adj_factor = st.slider("variation adjustment factor", min_value = 0.0, max_value = 2.0, value = 1.0)
+    variation_adj_factor = st.slider("variation adjustment factor", min_value = 0.0, max_value = 2.0, value = default_variation_adj_factor)
 
 recommended_weight = RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor) * oneRM
 

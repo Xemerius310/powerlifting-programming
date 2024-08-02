@@ -247,6 +247,7 @@ if metadata_spreadsheet_url:
 
     st.markdown("## Actual Progression")
     st.dataframe(actual_progression_df)
+    st.session_state["actual_progression_df"] = actual_progression_df
 
 
     st.markdown("## all planned base lift progressions")
