@@ -59,9 +59,18 @@ public_sheet_planning_page = st.Page("navigation/public_sheet_planning.py", titl
 mesocycle_creator_page = st.Page("navigation/mesocycle_creator.py", title = "🛠️ Mesocycle Creator")
 oneRM_calculator_page = st.Page("navigation/calculators.py", title = "🧮 Calculators")
 athlete_view_page = st.Page("navigation/athlete_view.py", title = "🏋 Athlete View")
+analysis_page = st.Page("navigation/analysis.py", title = "📊 Analysis")
 
+navigation = st.navigation(
+    [
+        public_sheet_planning_page,
+        analysis_page,
+        mesocycle_creator_page,
+        oneRM_calculator_page,
+        athlete_view_page
+    ]
+)
 
-navigation = st.navigation([public_sheet_planning_page, mesocycle_creator_page, oneRM_calculator_page, athlete_view_page])
 navigation.run()
 
 
