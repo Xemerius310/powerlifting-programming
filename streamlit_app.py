@@ -60,6 +60,7 @@ mesocycle_creator_page = st.Page("navigation/mesocycle_creator.py", title = "�
 oneRM_calculator_page = st.Page("navigation/calculators.py", title = "🧮 Calculators")
 athlete_view_page = st.Page("navigation/athlete_view.py", title = "🏋 Athlete View")
 analysis_page = st.Page("navigation/analysis.py", title = "📊 Analysis")
+weight_page = st.Page("navigation/weight.py", title = "⚖️ Weight")
 
 navigation = st.navigation(
     [
@@ -67,7 +68,8 @@ navigation = st.navigation(
         analysis_page,
         mesocycle_creator_page,
         oneRM_calculator_page,
-        athlete_view_page
+        athlete_view_page,
+        weight_page
     ]
 )
 

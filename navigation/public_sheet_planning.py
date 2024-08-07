@@ -59,7 +59,11 @@ if metadata_spreadsheet_url:
     st.markdown("## Variations")
     st.dataframe(variations_df)
     
-
+    # weight
+    weight_conn = st.connection("gsheets", type = GSheetsConnection)
+    weight_df = weight_conn.read(spreadsheet = metadata_df.loc["weight", "url"])
+    weight_df["date"] = pd.to_datetime(weight_df["date"], format = "%d.%m.%Y")
+    st.session_state["weight_df"] = weight_df
 
 
     # join program_df with variations_df on exercise
