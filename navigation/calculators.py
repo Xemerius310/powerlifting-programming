@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 
 RPE_to_pct = st.session_state["RPE_to_pct_fun"]
@@ -120,3 +121,26 @@ st.write(r"""
 
 """)
 
+
+st.markdown("## Rep Capacity Factor Finder")
+
+st.write("This table shows the recommended weight at different rep capacity factors for the given number of reps at the selected RPE.")
+st.write("This should help you choose a rep capacity factor that gives you a weight you can work with.")
+
+col8, col9 = st.columns(2)
+with col8:
+    oneRM = st.number_input("your 1RM", min_value = 0.0, step = round_multiple, value = default_1RM, key = "oneRM_rep_capacity")
+with col9:
+    RPE = st.number_input("show weights at RPE", min_value = 0.0, max_value = 10.0, value = 10.0, step = .5, key = "RPE_rep_capacity")
+
+weights_at_different_factors = pd.DataFrame({"rep_capacity_factor": np.repeat(0.1 * np.arange(0, 11), 15),
+                                             "reps": np.tile(np.arange(1, 16), 11)})
+
+weights_at_different_factors["rep_capacity_factor"] = weights_at_different_factors["rep_capacity_factor"].round(1)
+weights_at_different_factors["weight"] = weights_at_different_factors.apply(lambda row: RPE_to_pct(row["reps"], RPE, row["rep_capacity_factor"], 1) * oneRM, axis = 1)
+
+weights_at_different_factors["weight_rounded"] = weights_at_different_factors.apply(lambda row: round_to_multiple(row["weight"], round_multiple), axis = 1)
+
+weights_at_different_factors_wide = weights_at_different_factors.pivot(index = "reps", columns = "rep_capacity_factor", values = "weight_rounded")
+
+st.write(weights_at_different_factors_wide)
