@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from streamlit_gsheets import GSheetsConnection
+from st_supabase_connection import execute_query
 
 
+from helper_functions import RPE_to_pct, round_to_multiple
 
-
-RPE_to_pct = st.session_state["RPE_to_pct_fun"]
-round_to_multiple = st.session_state["round_to_multiple_fun"]
+# RPE_to_pct = st.session_state["RPE_to_pct_fun"]
+# round_to_multiple = st.session_state["round_to_multiple_fun"]
 
 
 
@@ -17,7 +18,59 @@ if "round_multiple" in st.session_state:
 if "metadata_spreadsheet_url" in st.session_state:
     metadata_spreadsheet_url = st.session_state["metadata_spreadsheet_url"]
 
-if metadata_spreadsheet_url:
+
+def get_supabase_data():
+
+    supabase = st.session_state["supabase"]
+
+    spreadsheet_links_query = execute_query(
+        supabase.table("spreadsheet_links").select("*"), ttl = 0
+    )
+
+    metadata_df = pd.DataFrame(spreadsheet_links_query.data)
+    metadata_df.set_index("spreadsheet", inplace = True)
+    st.write(metadata_df)
+
+    # program
+    program_conn = st.connection("gsheets", type = GSheetsConnection)
+    program_df = program_conn.read(spreadsheet = metadata_df.loc["program", "url"])
+    program_df["date"] = pd.to_datetime(program_df["date"], format = "%d.%m.%Y")
+    st.session_state["program_raw"] = program_df
+
+    print("program_df" in st.session_state)
+
+    st.markdown("## Program")
+    st.dataframe(program_df)
+
+    # override_1RM
+    override_1RM_conn = st.connection("gsheets", type = GSheetsConnection)
+    override_1RM_df = override_1RM_conn.read(spreadsheet = metadata_df.loc["override_1RM", "url"])
+    override_1RM_df["date"] = pd.to_datetime(override_1RM_df["date"], format = "%d.%m.%Y")
+    st.session_state["override_1RM_raw"] = override_1RM_df
+
+    st.markdown("## 1RM override")
+    st.dataframe(override_1RM_df)
+
+    # variations
+    variations_conn = st.connection("gsheets", type = GSheetsConnection)
+    variations_df = variations_conn.read(spreadsheet = metadata_df.loc["variations", "url"])
+    st.session_state["variations_raw"] = variations_df
+
+    st.markdown("## Variations")
+    st.dataframe(variations_df)
+    
+    # training log
+    training_log_query = execute_query(
+        supabase.table("training_log").select("*"), ttl = 0
+    )
+
+    actual_progression_df = pd.DataFrame(training_log_query.data)
+
+    actual_progression_df["date"] = pd.to_datetime(actual_progression_df["date"])
+    st.session_state["actual_progression_raw"] = actual_progression_df
+
+
+def read_gsheets(metadata_spreadsheet_url):
 
     #--- read google sheets ------------------------------------------------------------------------
 
@@ -33,6 +86,9 @@ if metadata_spreadsheet_url:
     program_conn = st.connection("gsheets", type = GSheetsConnection)
     program_df = program_conn.read(spreadsheet = metadata_df.loc["program", "url"])
     program_df["date"] = pd.to_datetime(program_df["date"], format = "%d.%m.%Y")
+    st.session_state["program_raw"] = program_df
+
+    print("program_df" in st.session_state)
 
     st.markdown("## Program")
     st.dataframe(program_df)
@@ -41,6 +97,7 @@ if metadata_spreadsheet_url:
     override_1RM_conn = st.connection("gsheets", type = GSheetsConnection)
     override_1RM_df = override_1RM_conn.read(spreadsheet = metadata_df.loc["override_1RM", "url"])
     override_1RM_df["date"] = pd.to_datetime(override_1RM_df["date"], format = "%d.%m.%Y")
+    st.session_state["override_1RM_raw"] = override_1RM_df
 
     st.markdown("## 1RM override")
     st.dataframe(override_1RM_df)
@@ -49,12 +106,13 @@ if metadata_spreadsheet_url:
     actual_progression_conn = st.connection("gsheets", type = GSheetsConnection)
     actual_progression_df = actual_progression_conn.read(spreadsheet = metadata_df.loc["actual_progression", "url"])
     actual_progression_df["date"] = pd.to_datetime(actual_progression_df["date"], format = "%d.%m.%Y")
+    st.session_state["actual_progression_raw"] = actual_progression_df
 
 
     # variations
     variations_conn = st.connection("gsheets", type = GSheetsConnection)
     variations_df = variations_conn.read(spreadsheet = metadata_df.loc["variations", "url"])
-    st.session_state["variations_df"] = variations_df
+    st.session_state["variations_raw"] = variations_df
 
     st.markdown("## Variations")
     st.dataframe(variations_df)
@@ -66,20 +124,32 @@ if metadata_spreadsheet_url:
     st.session_state["weight_df"] = weight_df
 
 
-    # join program_df with variations_df on exercise
-    # program_df = (program_df
-    #               .merge(variations_df, left_on = "exercise", right_on = "variation")
-    #               .drop(columns=['variation'])
-    #             #   .apply(lambda row: )
-    # )
 
-    # st.write(program_df)
-    
+
+
+# check if all keys are present in the session state
+# keys_to_check = ["program_raw", "override_1RM_raw", "actual_progression_raw", "variations_raw"]
+# for key in keys_to_check:
+#     st.write(key, key in st.session_state)
+# all_keys_present = all(key in st.session_state for key in keys_to_check)
+
+# st.write("test", "test" in st.session_state)
+# st.write(all_keys_present)
+
+def calculate_planned_progression():
+
+    program_df = st.session_state["program_raw"]
+    override_1RM_df = st.session_state["override_1RM_raw"]
+    actual_progression_df = st.session_state["actual_progression_raw"]
+    variations_df = st.session_state["variations_raw"]
+    round_multiple = st.session_state["round_multiple"]
+
 
     increments = variations_df[["base_lift", "microcycle_increment"]].drop_duplicates()
     increments["daily_increment"] = increments["microcycle_increment"] / 7
     st.session_state["increments"] = increments
 
+    
     st.markdown("## Increments")
     st.write(increments)
 
@@ -282,4 +352,11 @@ if metadata_spreadsheet_url:
 
     
 
-    
+if st.button("load gsheets data"):
+    read_gsheets(metadata_spreadsheet_url)
+    calculate_planned_progression()
+
+if st.button("load supabase data"):
+    get_supabase_data()
+    calculate_planned_progression()
+

@@ -2,16 +2,15 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+from helper_functions import RPE_to_pct, round_to_multiple
 
-RPE_to_pct = st.session_state["RPE_to_pct_fun"]
-round_to_multiple = st.session_state["round_to_multiple_fun"]
 round_multiple = st.session_state["round_multiple"]
 
 
 st.markdown("## Weight Recommendation Calculator")
 
-if "variations_df" in st.session_state:
-    variations_df = st.session_state.variations_df
+if "variations_raw" in st.session_state:
+    variations_df = st.session_state.variations_raw
     base_lifts = variations_df["base_lift"].unique()
 
     base_lift_col, variation_col = st.columns(2)
@@ -30,6 +29,7 @@ else:
 
 if "increments" in st.session_state:
     increments = st.session_state.increments
+    st.write(increments)
     daily_increment = increments[increments["base_lift"] == base_lift]["daily_increment"].values[0]
 
 if "all_planned_base_lift_progressions" in st.session_state:

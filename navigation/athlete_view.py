@@ -7,8 +7,11 @@ today = pd.to_datetime("today").normalize()
 if "program_df" in st.session_state:
     program_df = st.session_state.program_df
 
+
     future_training_days = program_df[program_df["date"] >= today]["date"].unique()
-    next_training_day = future_training_days[0]
+    
+    next_training_day = st.selectbox("Select a future training day", np.datetime_as_string(future_training_days, unit = "D"))
+    next_training_day = np.datetime64(next_training_day, "D")
 
 
     cols = ["base_lift", "exercise", "set_type", "sets", "reps", "RPE", "weight_planned_rounded", "planned_1RM" ]

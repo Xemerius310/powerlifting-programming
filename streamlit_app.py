@@ -2,54 +2,103 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from streamlit_gsheets import GSheetsConnection
+from streamlit_cookies_controller import CookieController
+from st_supabase_connection import SupabaseConnection, execute_query
 
 
-#---------------------------------------------------------------------------------------------------
-# defining common functions used in multiple pages
-#---------------------------------------------------------------------------------------------------
 
-# defining the RPE to percentage of 1RM conversion function
-RPE_to_pct_df = pd.read_csv("data/DDS_RPE-to-percent1RM.csv")
+supabase = st.connection("supabase", type = SupabaseConnection)
+st.session_state["supabase"] = supabase
 
-# interpolation factor is the factor by which the low and high DDS values will be interpolated
-# variation_adj_factor scales the percentage of 1RM based on the variation
-def RPE_to_pct(reps, RPE, interpolation_factor, variation_adj_factor = 1.0):
-    potential_reps = reps + (10 - RPE)
-    RPE_to_pct_df["interpolated"] = (
-        variation_adj_factor * (RPE_to_pct_df["DDS_low"] * (1-interpolation_factor) + RPE_to_pct_df["DDS_high"] * interpolation_factor)
+
+# import needs to happen here since the functions above need to be defined before public_sheet_planning.py is loaded
+from navigation.public_sheet_planning import get_supabase_data, read_gsheets, calculate_planned_progression
+
+# gets the user id based on auth id and saves it to session state
+def get_user_id():
+    user_response = supabase.auth.get_user()
+    auth_id = user_response.user.id
+
+    # get user data from user table in database, based on the user's auth_id
+    user_data = execute_query(
+        supabase.table("user").select("id, username").eq("auth_id", auth_id), ttl = 0
     )
-
-    return float(RPE_to_pct_df.loc[RPE_to_pct_df["reps_at_RPE_10"] == potential_reps, "interpolated"])
-
-st.session_state["RPE_to_pct_fun"] = RPE_to_pct
+    st.session_state["username"] = user_data.data[0].get("username")
+    st.session_state["user_id"] = user_data.data[0].get("id")
 
 
-# defining the function for rounding weights to the nearest multiple given
-def round_to_multiple(number, multiple):
-    """
-    Rounds a given number to the nearest specified multiple.
+cookie_controller = CookieController()
 
-    Parameters:
-    - number (float or int): The number to be rounded.
-    - multiple (float or int): The multiple to round the number to.
+all_cookies = cookie_controller.getAll()
 
-    Returns:
-    - float: The number rounded to the nearest specified multiple.
-    """
-    if multiple == 0:
-        return number
-    
-    if pd.isna(number):
-        return pd.NA
+# user_response = supabase.auth.get_user()
+# if user_response is None and "access_token" in all_cookies and "refresh_token" in all_cookies:
+#     supabase.auth.set_session(all_cookies["access_token"], all_cookies["refresh_token"])
 
-    return round(number / multiple) * multiple
+#     session_response = supabase.auth.get_session()
 
-st.session_state["round_to_multiple_fun"] = round_to_multiple
+#     cookie_controller.set(name = "access_token", value = session_response.access_token)
+#     cookie_controller.set(name = "refresh_token", value = session_response.refresh_token)
+
+#     get_user_id()
 
 
 with st.sidebar:
-    st.session_state["metadata_spreadsheet_url"] = st.text_input(label = "metadata spreadsheet url")
+    default_metadata_spreadsheet_url = cookie_controller.get("metadata_spreadsheet_url")
+    metadata_spreadsheet_url = st.text_input(label = "metadata spreadsheet url", value = default_metadata_spreadsheet_url)
+
+    st.session_state["metadata_spreadsheet_url"] = metadata_spreadsheet_url
+
+    if metadata_spreadsheet_url:
+        cookie_controller.set(name = "metadata_spreadsheet_url", value = metadata_spreadsheet_url)
+    
+        if st.button("load gsheets data"):
+            read_gsheets(metadata_spreadsheet_url)
+            calculate_planned_progression()
+            st.rerun()
+
+    email = st.text_input(label = "username")
+    password = st.text_input(label = "password", type = "password")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        login_button = st.button("login")
+    with col2:
+        logout_button = st.button("logout")
+
+    if login_button:
+        try:
+            supabase.auth.sign_in_with_password(dict(email = email, password = password))
+            st.write(f"Welcome, {email}!")
+            
+
+            get_user_id()
+
+            session_response = supabase.auth.get_session()
+
+            cookie_controller.set(name = "access_token", value = session_response.access_token)
+            cookie_controller.set(name = "refresh_token", value = session_response.refresh_token)
+            
+            # get_supabase_data()
+            # calculate_planned_progression()
+            # st.rerun()
+
+        except:
+            st.write("login failed")
+
+        cookie_controller.set(name = "email", value = email)
+    
+    if logout_button:
+        logout_result = supabase.auth.sign_out()
+        cookie_controller.remove("email")
+        cookie_controller.remove("access_token")
+        cookie_controller.remove("refresh_token")
+
+
+
     st.session_state["round_multiple"] = st.number_input(label = "round weights to nearest multiple of", value = 2.5)
+
+
 
 #---------------------------------------------------------------------------------------------------
 # defining pages
@@ -60,18 +109,22 @@ mesocycle_creator_page = st.Page("navigation/mesocycle_creator.py", title = "�
 oneRM_calculator_page = st.Page("navigation/calculators.py", title = "🧮 Calculators")
 athlete_view_page = st.Page("navigation/athlete_view.py", title = "🏋 Athlete View")
 analysis_page = st.Page("navigation/analysis.py", title = "📊 Analysis")
-weight_page = st.Page("navigation/weight.py", title = "⚖️ Weight")
+bodyweight_page = st.Page("navigation/bodyweight.py", title = "⚖️ Weight")
+training_log_page = st.Page("navigation/training_log.py", title = "📝 Training Log")
 
-navigation = st.navigation(
-    [
+navigation = st.navigation({
+    "Planning": [
         public_sheet_planning_page,
         analysis_page,
         mesocycle_creator_page,
+    ],
+    "Training": [
         oneRM_calculator_page,
         athlete_view_page,
-        weight_page
-    ]
-)
+        bodyweight_page,
+        training_log_page
+    ],
+})
 
 navigation.run()
 
