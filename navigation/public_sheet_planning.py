@@ -7,8 +7,7 @@ from st_supabase_connection import execute_query
 
 from helper_functions import RPE_to_pct, round_to_multiple
 
-# RPE_to_pct = st.session_state["RPE_to_pct_fun"]
-# round_to_multiple = st.session_state["round_to_multiple_fun"]
+
 
 
 
@@ -20,7 +19,6 @@ if "metadata_spreadsheet_url" in st.session_state:
 
 
 def get_supabase_data():
-
     supabase = st.session_state["supabase"]
 
     spreadsheet_links_query = execute_query(
@@ -36,8 +34,6 @@ def get_supabase_data():
     program_df = program_conn.read(spreadsheet = metadata_df.loc["program", "url"])
     program_df["date"] = pd.to_datetime(program_df["date"], format = "%d.%m.%Y")
     st.session_state["program_raw"] = program_df
-
-    print("program_df" in st.session_state)
 
     st.markdown("## Program")
     st.dataframe(program_df)
@@ -126,16 +122,6 @@ def read_gsheets(metadata_spreadsheet_url):
 
 
 
-
-# check if all keys are present in the session state
-# keys_to_check = ["program_raw", "override_1RM_raw", "actual_progression_raw", "variations_raw"]
-# for key in keys_to_check:
-#     st.write(key, key in st.session_state)
-# all_keys_present = all(key in st.session_state for key in keys_to_check)
-
-# st.write("test", "test" in st.session_state)
-# st.write(all_keys_present)
-
 def calculate_planned_progression():
 
     program_df = st.session_state["program_raw"]
@@ -193,7 +179,7 @@ def calculate_planned_progression():
 
     # calculate e1RM and mean e1RM for actual progression
     actual_progression_df["e1RM"] = actual_progression_df.apply(lambda row: row["weight_actual"] / RPE_to_pct(row["reps_actual"], row["RPE_actual"], row["RPE-to-pct-1RM"], row["variation_pct_of_1RM"]), axis = 1)
-    actual_progression_df["mean_e1RM"] = actual_progression_df.groupby(["date", "exercise"])["e1RM"].transform("mean")
+    actual_progression_df["mean_e1RM"] = actual_progression_df.groupby(["date", "base_lift"])["e1RM"].transform("mean")
 
     # calculate potential reps (actual progression and planned)
     actual_progression_df["potential_reps_planned"] = actual_progression_df["reps_planned"] + (10 - actual_progression_df["RPE_planned"])
@@ -260,7 +246,6 @@ def calculate_planned_progression():
                 # subset the actual progression dataframe for the base lift appropriately
                 # only use rows for the current date and ensure that the row should be used for 1RM planning
                 base_lift_df_subset = base_lift_df.loc[(base_lift_df["date"] == date) & (base_lift_df["use_for_1RM_planning"] == True)]
-                # st.write(base_lift_df_subset)
 
                 mean_potential_reps_actual = base_lift_df_subset["potential_reps_actual"].mean()
                 mean_potential_reps_planned = base_lift_df_subset["potential_reps_planned"].mean()
@@ -288,6 +273,7 @@ def calculate_planned_progression():
                     planned_base_lift_progression.at[i, "mean_e1RM"] = base_lift_df_subset["e1RM"].mean()
 
                 mean_e1RM = planned_base_lift_progression.at[i, "mean_e1RM"]
+
 
                 # update planned 1RM
                 if i != len(unique_dates) - 1: # if not the last date
@@ -357,6 +343,12 @@ if st.button("load gsheets data"):
     calculate_planned_progression()
 
 if st.button("load supabase data"):
-    get_supabase_data()
-    calculate_planned_progression()
+    supabase = st.session_state["supabase"]
+
+    if supabase.auth.get_user():
+        
+        get_supabase_data()
+        calculate_planned_progression()
+    else:
+        st.write("Please sign in first")
 

@@ -55,11 +55,8 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
     exercises = list(st.session_state["exercise_list"]["exercise"])
     set_types = ["top", "back off", "back off 1", "back off 2", "straight"]  # Example set types
 
-
-    # st.write(logged_at_date)
     logged_at_date_exercise = (logged_at_date[logged_at_date["exercise"] == exercise]
                                 .reset_index(drop = False))
-    # st.write(logged_at_date_exercise)
 
     if is_editing:
         selected_row_data = logged_at_date_exercise.iloc[selected_row]
@@ -138,10 +135,10 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
 
 
 if supabase.auth.get_user():
-    if "user_id" in st.session_state:
-        user_id = st.session_state["user_id"]
-    else:
+    if not "user_id" in st.session_state:
         get_user_id()
+
+    user_id = st.session_state["user_id"]
 
     # get training log
     training_log_response = execute_query(supabase.table("training_log").select("*").eq("user_id", user_id), ttl = 0)

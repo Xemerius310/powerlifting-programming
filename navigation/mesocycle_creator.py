@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from streamlit_gsheets import GSheetsConnection
 
 
 def add_sequence(df_key, column, sequence_type, start, increment):
@@ -44,11 +43,12 @@ def series_creator(current_exercise_programming, key):
 
 st.title("Mesocycle Creator")
 
-st.write("Choose the mesocycle length, i.e. how many microcycle the macrocycle should consist of:")
+st.write("Choose the mesocycle length, i.e. how many microcycles the macrocycle should consist of:")
 meso_length = st.slider(label = "mesocycle length", min_value = 1, max_value = 16, value = 6)
 
 st.write("Choose the microcycle length, i.e. how many days (including rest days) the microcycle should consist of:")
 micro_length = st.slider(label = "microcycle length", min_value = 1, max_value = 16, value = 7)
+
 
 
 microcycle = st.data_editor(
@@ -56,7 +56,66 @@ microcycle = st.data_editor(
     num_rows = "dynamic"
 )
 
+microcycle_flattened = microcycle.values.flatten()
+exercises_without_nulls = microcycle_flattened[pd.notnull(microcycle_flattened)]
+all_exercises = list(set(exercises_without_nulls))
+
+
+for exercise in all_exercises:
+    st.markdown(f"## {exercise}")
+    exercise_days = microcycle.columns[microcycle.isin([exercise]).any()].tolist()
+
+    exercise_set_types = st.data_editor(
+        pd.DataFrame(columns = exercise_days),
+        num_rows = "dynamic",
+        key = f"{exercise}-set_types"
+    )
+
+    all_exercise_set_types = list(set(exercise_set_types.values.flatten()))
+    
+    for set_type in all_exercise_set_types:
+        st.markdown(f"### {set_type}")
+
+        n_set_type_days = len(exercise_set_types.isin([set_type]).any())
+        sequence_length = n_set_type_days * meso_length
+
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.write("sets"); st.write(""); st.write("")
+            st.write("reps"); st.write(""); st.write(""); st.write("")
+            st.write("RPE")
+
+        with col2:
+            start_sets = st.number_input(min_value = 1, step = 1, label = "start", key = f"{exercise}-{set_type}-start_sets")
+            start_reps = st.number_input(min_value = 1, step = 1, label = "start", key = f"{exercise}-{set_type}-start_reps")
+            start_RPE = st.number_input(min_value = 1.0, step = 0.5, label = "start", key = f"{exercise}-{set_type}-start_RPE")
+        
+        with col3:
+            step_sets = st.number_input(min_value = 0, step = 1, label = "step", key = f"{exercise}-{set_type}-step_sets")
+            step_reps = st.number_input(min_value = 0, step = 1, label = "step", key = f"{exercise}-{set_type}-step_reps")
+            step_RPE = st.number_input(min_value = 0.0, step = 0.5, label = "step", key = f"{exercise}-{set_type}-step_RPE")
+        
+        with col4:
+            sequence_options = ["linear", "+1,-1,+2,-1", "repeat"]
+            sequence_type_sets = st.selectbox(label = "sequence type", options = sequence_options, key = f"{exercise}-{set_type}-seq_type_sets")
+            sequence_type_reps = st.selectbox(label = "sequence type", options = sequence_options, key = f"{exercise}-{set_type}-seq_type_reps")
+            sequence_type_RPE = st.selectbox(label = "sequence type", options = sequence_options, key = f"{exercise}-{set_type}-seq_type_RPE")
+
+        with col5:
+            repeat_sequence_sets = st.text_input(label = "repeat sequence", key = f"{exercise}-{set_type}-repeat_seq_sets")
+            repeat_sequence_reps = st.text_input(label = "repeat sequence", key = f"{exercise}-{set_type}-repeat_seq_reps")
+            repeat_sequence_RPE = st.text_input(label = "repeat sequence", key = f"{exercise}-{set_type}-repeat_seq_RPE")
+        
+
+
+
+
+
+  
+
 for day in list(microcycle):
+    st.write(day)
+    st.write(microcycle[day])
 
     if not microcycle[day].isnull().all():
         
@@ -65,42 +124,16 @@ for day in list(microcycle):
         for exercise in microcycle[day].dropna():
             st.markdown(f"### {exercise}")
 
+
             current_exercise_programming = st.data_editor(
                 pd.DataFrame(columns = ["microcycle", "set type", "sets", "reps", "RPE"]),
                 num_rows = "dynamic",
                 key = f"{day}-{exercise}-data"
             )
 
-            if f"{day}-{exercise}-data" not in st.session_state:
-                st.session_state[f"{day}-{exercise}-data"] = current_exercise_programming
+            st.write(current_exercise_programming)
+
+            # if f"{day}-{exercise}-data" not in st.session_state:
+            #     st.session_state[f"{day}-{exercise}-data"] = current_exercise_programming
             
-            series_creator(f"{day}-{exercise}-data", f"{day}-{exercise}")
-
-
-'''
-test = st.data_editor(pd.DataFrame(columns = ["test1", "test2"]))
-
-test_button = st.button(label = "add sequence test",
-    on_click = add_sequence,
-    args = [test, "test1", "linear", 7, .5]
-
-)
-'''
-
-'''
-exercices_per_day = []
-
-for day in range(1, micro_length + 1):
-    st.markdown(f"## day {day}")
-    current_day_exercises = st.data_editor(
-        pd.DataFrame({"exercise": ["comp bench", "comp bench"], "set type": ["top", "back off"]}),
-        num_rows = "dynamic",
-        key = f"day_{day}"
-    )
-    
-    exercices_per_day.append(current_day_exercises)
-
-full_microcycle = st.dataframe(
-    pd.concat(exercices_per_day, keys = [str(day) for day in range(1, micro_length + 1)])
-)
-'''
+            # series_creator(f"{day}-{exercise}-data", f"{day}-{exercise}")

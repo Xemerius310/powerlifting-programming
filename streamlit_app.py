@@ -1,8 +1,11 @@
 import streamlit as st
+import time
+import datetime
 import pandas as pd
 import numpy as np
 from streamlit_gsheets import GSheetsConnection
 from streamlit_cookies_controller import CookieController
+from st_local_storage import StLocalStorage
 from st_supabase_connection import SupabaseConnection, execute_query
 
 
@@ -16,6 +19,7 @@ from navigation.public_sheet_planning import get_supabase_data, read_gsheets, ca
 
 # gets the user id based on auth id and saves it to session state
 def get_user_id():
+    supabase = st.session_state["supabase"]
     user_response = supabase.auth.get_user()
     auth_id = user_response.user.id
 
@@ -27,24 +31,60 @@ def get_user_id():
     st.session_state["user_id"] = user_data.data[0].get("id")
 
 
+def get_data_and_calculate_progression():
+    """
+    Retrieves data from the Supabase database and calculates the planned progression.
+    """
+    supabase = st.session_state["supabase"]
+    if supabase.auth.get_user():
+        if not "user_id" in st.session_state:
+            get_user_id()
+
+        get_supabase_data()
+        calculate_planned_progression()
+
+
+
 cookie_controller = CookieController()
+st_ls = StLocalStorage()
 
 all_cookies = cookie_controller.getAll()
+# st.write(all_cookies)
 
-# user_response = supabase.auth.get_user()
-# if user_response is None and "access_token" in all_cookies and "refresh_token" in all_cookies:
-#     supabase.auth.set_session(all_cookies["access_token"], all_cookies["refresh_token"])
+user_response = supabase.auth.get_user()
+# access_token = st_ls.get("access_token")
+# refresh_token = st_ls.get("refresh_token")
+# st.write(access_token, refresh_token)
+if user_response is None and all_cookies is not None and "access_token" in all_cookies and "refresh_token" in all_cookies:
+# if user_response is None and access_token is not None and refresh_token is not None:
+    try:
+        access_token, refresh_token = all_cookies.get("access_token"), all_cookies.get("refresh_token")
+        supabase.auth.set_session(access_token, refresh_token)
 
-#     session_response = supabase.auth.get_session()
+        session_response = supabase.auth.get_session()
+        # st.write(session_response)
 
-#     cookie_controller.set(name = "access_token", value = session_response.access_token)
-#     cookie_controller.set(name = "refresh_token", value = session_response.refresh_token)
+        cookie_controller.set(name = "access_token", value = session_response.access_token, expires = datetime.strptime("2099-12-31", "%Y-%m-%d"))
+        cookie_controller.set(name = "refresh_token", value = session_response.refresh_token, expires = datetime.strptime("2099-12-31", "%Y-%m-%d"))
+        # st_ls.set("access_token", access_token)
+        # st_ls.set("refresh_token", refresh_token)
 
-#     get_user_id()
+        get_user_id()
+    except Exception as e:
+        with st.sidebar:
+            st.error(e)
+            st.write("Could not log in with cookie data. Please log in again.")
 
+if user_response:
+    with st.sidebar:
+        st.write(f"Signed in as {user_response.user.email}")
 
 with st.sidebar:
-    default_metadata_spreadsheet_url = cookie_controller.get("metadata_spreadsheet_url")
+    if "metadata_spreadsheet_url" in all_cookies:
+        default_metadata_spreadsheet_url = cookie_controller.get("metadata_spreadsheet_url")
+    else:
+        default_metadata_spreadsheet_url = ""
+
     metadata_spreadsheet_url = st.text_input(label = "metadata spreadsheet url", value = default_metadata_spreadsheet_url)
 
     st.session_state["metadata_spreadsheet_url"] = metadata_spreadsheet_url
@@ -57,6 +97,7 @@ with st.sidebar:
             calculate_planned_progression()
             st.rerun()
 
+    # supabase login form
     email = st.text_input(label = "username")
     password = st.text_input(label = "password", type = "password")
 
@@ -71,13 +112,15 @@ with st.sidebar:
             supabase.auth.sign_in_with_password(dict(email = email, password = password))
             st.write(f"Welcome, {email}!")
             
-
             get_user_id()
 
             session_response = supabase.auth.get_session()
 
             cookie_controller.set(name = "access_token", value = session_response.access_token)
             cookie_controller.set(name = "refresh_token", value = session_response.refresh_token)
+
+            # st_ls.set("access_token", session_response.access_token)
+            # st_ls.set("refresh_token", session_response.refresh_token)
             
             # get_supabase_data()
             # calculate_planned_progression()
@@ -93,6 +136,8 @@ with st.sidebar:
         cookie_controller.remove("email")
         cookie_controller.remove("access_token")
         cookie_controller.remove("refresh_token")
+        # del st_ls["access_token"]
+        # del st_ls["refresh_token"]
 
 
 

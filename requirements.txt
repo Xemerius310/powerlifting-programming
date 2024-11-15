@@ -1,6 +1,7 @@
 pandas
 numpy==1.26.4
-streamlit==1.38.0
+streamlit==1.40.1
 st-gsheets-connection==0.1.0
 streamlit-cookies-controller
 st-supabase-connection
+streamlit-js

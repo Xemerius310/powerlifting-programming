@@ -3,10 +3,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+from streamlit_app import get_data_and_calculate_progression
 
 from helper_functions import round_to_multiple
-# round_to_multiple = st.session_state["round_to_multiple_fun"]
 
+supabase = st.session_state["supabase"]
 
 st.title("Progression Analysis")
 
@@ -28,6 +29,10 @@ st.graphviz_chart('''
 
 if "round_multiple" in st.session_state:
     round_multiple = st.session_state["round_multiple"]
+
+if "all_planned_base_lift_progressions" not in st.session_state:
+    get_data_and_calculate_progression()
+    st.rerun()
 
 if "all_planned_base_lift_progressions" in st.session_state:
     all_planned_base_lift_progressions = st.session_state.all_planned_base_lift_progressions

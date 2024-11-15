@@ -1,8 +1,25 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from navigation.public_sheet_planning import get_supabase_data, calculate_planned_progression
+from streamlit_app import get_user_id
 
 today = pd.to_datetime("today").normalize()
+
+supabase = st.session_state["supabase"]
+
+if "program_df" not in st.session_state:
+    if supabase.auth.get_user():
+        if not "user_id" in st.session_state:
+            get_user_id()
+
+        user_id = st.session_state["user_id"]
+
+        get_supabase_data()
+        calculate_planned_progression()
+        st.rerun()
+
+
 
 if "program_df" in st.session_state:
     program_df = st.session_state.program_df
