@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from datetime import date
 from st_supabase_connection import execute_query
 from streamlit_app import get_user_id
 
@@ -53,7 +54,7 @@ def add_set(exercise, set_type, weight, reps, RPE):
 def open_dialog(is_editing = False, selected_row = None, exercise = None):
     """Open the dialog for adding or editing a set."""
     exercises = list(st.session_state["exercise_list"]["exercise"])
-    set_types = ["top", "back off", "back off 1", "back off 2", "straight"]  # Example set types
+    set_types = ["top", "back off", "back off 1", "back off 2", "straight", "ramp up 1"]  # Example set types
 
     logged_at_date_exercise = (logged_at_date[logged_at_date["exercise"] == exercise]
                                 .reset_index(drop = False))
@@ -104,7 +105,7 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
             edit_response = execute_query(
                 supabase.table("training_log").upsert({
                     "user_id": st.session_state["user_id"],
-                    "date": date.strftime("%Y-%m-%d"),
+                    "date": selected_date.strftime("%Y-%m-%d"),
                     "exercise": exercise,
                     "set_type": set_type,
                     "set_number": set_number,
@@ -123,7 +124,7 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
                 supabase.table("training_log")
                     .delete()
                     .eq("user_id", st.session_state["user_id"])
-                    .eq("date", date.strftime("%Y-%m-%d"))
+                    .eq("date", selected_date.strftime("%Y-%m-%d"))
                     .eq("set_number", set_number),
                 ttl = 0
             )
@@ -140,22 +141,25 @@ if supabase.auth.get_user():
 
     user_id = st.session_state["user_id"]
 
-    # get training log
-    training_log_response = execute_query(supabase.table("training_log").select("*").eq("user_id", user_id), ttl = 0)
-    training_log_df = pd.DataFrame(training_log_response.data)
-    training_log_df["date"] = pd.to_datetime(training_log_df["date"])
-    training_log_df.sort_values(["date", "set_number"], inplace = True)
+    selected_date = st.date_input(label = "Date", value = date.today())
 
-    date = st.date_input(label = "Date", value = training_log_df["date"].iloc[-1])
-    logged_at_date = training_log_df[training_log_df["date"] == np.datetime64(date, "D")]
+    # get training log
+    training_log_response = execute_query(supabase.table("training_log")
+                                                  .select("*")
+                                                  .eq("user_id", user_id)
+                                                  .eq("date", selected_date), ttl = 0)
+
+    logged_at_date = pd.DataFrame(training_log_response.data)
+    logged_at_date["date"] = pd.to_datetime(logged_at_date["date"])
+    logged_at_date.sort_values(["date", "set_number"], inplace = True)
+
 
     if "exercise_list" not in st.session_state:
         get_exercise_list()
 
     # join logged_at_date with exercise list
     logged_at_date = (logged_at_date.merge(st.session_state["exercise_list"], on = "exercise")
-                      .sort_values("set_number"))
-    
+                          .sort_values("set_number"))
 
     for exercise in logged_at_date["exercise"].unique():
         if f"selection for {exercise}" in st.session_state and st.session_state[f"selection for {exercise}"] is not None:

@@ -60,7 +60,9 @@ else:
 #---------------------------------------------------------------------------------------------------
 
 
-weight_rec_tab, e1RM_tab, rep_cap_tab = st.tabs(["Weight Recommendation", "Estimated 1RM", "Rep Capacity Finder"])
+weight_rec_tab, e1RM_tab, rep_cap_tab, attempt_planner_tab = st.tabs(
+    ["Weight Recommendation", "Estimated 1RM", "Rep Capacity Finder", "Attempt Planner"]
+)
 
 with weight_rec_tab:
     col1, col2, col3 = st.columns(3)
@@ -175,3 +177,32 @@ with rep_cap_tab:
     weights_at_different_factors_wide = weights_at_different_factors.pivot(index = "reps", columns = "rep_capacity_factor", values = "weight_rounded")
 
     st.write(weights_at_different_factors_wide)
+
+
+
+with attempt_planner_tab:
+
+    st.markdown("## Goals")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        squat_goal = st.number_input("squat goal", min_value = 0.0, value = 200.0)
+    with col2:
+        bench_goal = st.number_input("bench goal", min_value = 0.0, value = 140.0)
+    with col3:
+        deadlift_goal = st.number_input("deadlift goal", min_value = 0.0, value = 250.0)
+
+    st.markdown("## Attempts")
+    st.markdown("### Squat")
+    col1, col2, col3, col4 = st.columns(4)
+
+    squat_3rd_B = squat_goal * 0.98
+    squat_3rd_C = squat_goal * 0.96040 # 0.98 * 0.98
+
+    squat_2nd_A = squat_goal * 0.96
+    squat_2nd_B = squat_goal * 0.92160 # 0.96 * 0.96
+    squat_2nd_C = squat_goal * 0.89395 # 0.96 * 0.96 * 0.97
+
+    squat_opener = squat_goal * 0.96
+
+    with col1:
+        st.metric("Squat Opener", 0.0)

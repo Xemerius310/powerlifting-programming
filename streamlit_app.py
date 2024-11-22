@@ -169,7 +169,7 @@ navigation = st.navigation({
         bodyweight_page,
         training_log_page
     ],
-})
+}, expanded = True)
 
 navigation.run()
 
