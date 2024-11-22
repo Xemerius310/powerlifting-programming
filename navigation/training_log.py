@@ -56,8 +56,9 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
     exercises = list(st.session_state["exercise_list"]["exercise"])
     set_types = ["top", "back off", "back off 1", "back off 2", "straight", "ramp up 1"]  # Example set types
 
-    logged_at_date_exercise = (logged_at_date[logged_at_date["exercise"] == exercise]
-                                .reset_index(drop = False))
+    if not logged_at_date.empty:
+        logged_at_date_exercise = (logged_at_date[logged_at_date["exercise"] == exercise]
+                                    .reset_index(drop = False))
 
     if is_editing:
         selected_row_data = logged_at_date_exercise.iloc[selected_row]
@@ -70,9 +71,9 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
         set_type_index = set_types.index(set_type)
 
         set_number = selected_row_data["set_number"]
-        weight = selected_row_data["weight"]
+        weight = float(selected_row_data["weight"])
         reps = selected_row_data["reps"]
-        rpe = selected_row_data["RPE"]
+        rpe = float(selected_row_data["RPE"])
     else:
         exercise_index, set_type_index, weight, reps, rpe = 0, 0, 0.0, 0, 0.0
         if not logged_at_date.empty:
@@ -80,9 +81,9 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
             exercise_index = exercises.index(last_logged_set["exercise"])
             set_type_index = set_types.index(last_logged_set["set_type"])
             set_number = logged_at_date["set_number"].max() + 1
-            weight = last_logged_set["weight"]
+            weight = float(last_logged_set["weight"])
             reps = last_logged_set["reps"]
-            rpe = last_logged_set["RPE"]
+            rpe = float(last_logged_set["RPE"])
 
         # set the set number 1 if no sets have been logged
         else:
@@ -150,41 +151,43 @@ if supabase.auth.get_user():
                                                   .eq("date", selected_date), ttl = 0)
 
     logged_at_date = pd.DataFrame(training_log_response.data)
-    logged_at_date["date"] = pd.to_datetime(logged_at_date["date"])
-    logged_at_date.sort_values(["date", "set_number"], inplace = True)
-
 
     if "exercise_list" not in st.session_state:
         get_exercise_list()
 
-    # join logged_at_date with exercise list
-    logged_at_date = (logged_at_date.merge(st.session_state["exercise_list"], on = "exercise")
-                          .sort_values("set_number"))
+    if not logged_at_date.empty:
+        logged_at_date["date"] = pd.to_datetime(logged_at_date["date"])
+        logged_at_date.sort_values(["date", "set_number"], inplace = True)
 
-    for exercise in logged_at_date["exercise"].unique():
-        if f"selection for {exercise}" in st.session_state and st.session_state[f"selection for {exercise}"] is not None:
-            # st.write(f"selection for {exercise}")
-            # st.write(st.session_state[f"selection for {exercise}"])
+        # join logged_at_date with exercise list
+        logged_at_date = (logged_at_date.merge(st.session_state["exercise_list"], on = "exercise")
+                            .sort_values("set_number"))
 
-            selected_row_list = st.session_state[f"selection for {exercise}"]["selection"]["rows"]
-            if len(selected_row_list) > 0:
-                # reset the selection
-                st.session_state[f"selection for {exercise}"] = None
-                # selected_row_list only contains one element because selection_mode is set to "single-row"
-                open_dialog(True, selected_row_list[0], exercise)
-                break
+        for exercise in logged_at_date["exercise"].unique():
+            if f"selection for {exercise}" in st.session_state and st.session_state[f"selection for {exercise}"] is not None:
+                # st.write(f"selection for {exercise}")
+                # st.write(st.session_state[f"selection for {exercise}"])
+
+                selected_row_list = st.session_state[f"selection for {exercise}"]["selection"]["rows"]
+                if len(selected_row_list) > 0:
+                    # reset the selection
+                    st.session_state[f"selection for {exercise}"] = None
+                    # selected_row_list only contains one element because selection_mode is set to "single-row"
+                    open_dialog(True, selected_row_list[0], exercise)
+                    break
 
     # button to add new set
     if st.button('Add New Set'):
         open_dialog()
 
-    for exercise, exercise_sets in logged_at_date.groupby("exercise"):
-        st.subheader(exercise)
-        st.session_state[f"selection for {exercise}"] = st.dataframe(
-            exercise_sets[["set_number", "set_type", "weight", "reps", "RPE"]],
-            selection_mode = "single-row",
-            on_select = "rerun",
-            hide_index = True)
+    if not logged_at_date.empty:
+        for exercise, exercise_sets in logged_at_date.groupby("exercise"):
+            st.subheader(exercise)
+            st.session_state[f"selection for {exercise}"] = st.dataframe(
+                exercise_sets[["set_number", "set_type", "weight", "reps", "RPE"]],
+                selection_mode = "single-row",
+                on_select = "rerun",
+                hide_index = True)
     
 
     
