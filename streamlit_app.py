@@ -143,7 +143,13 @@ with st.sidebar:
 
     st.session_state["round_multiple"] = st.number_input(label = "round weights to nearest multiple of", value = 2.5)
 
-
+    # if not st.experimental_user.is_logged_in_in:
+    #     if st.button("Login"):
+    #         st.login()
+    # else:
+    #     if st.button("Logout"):
+    #         st.logout()
+    #     st.write(f"Logged in as {st.experimental_user.name}")
 
 #---------------------------------------------------------------------------------------------------
 # defining pages

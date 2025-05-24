@@ -75,7 +75,7 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
         reps = selected_row_data["reps"]
         rpe = float(selected_row_data["RPE"])
     else:
-        exercise_index, set_type_index, weight, reps, rpe = 0, 0, 0.0, 0, 0.0
+        exercise_index, set_type_index, weight, reps, rpe = 0, 0, 0.0, 1, 0.0
         if not logged_at_date.empty:
             last_logged_set = logged_at_date.iloc[logged_at_date["set_number"].idxmax()]
             exercise_index = exercises.index(last_logged_set["exercise"])
@@ -96,7 +96,7 @@ def open_dialog(is_editing = False, selected_row = None, exercise = None):
     with col2:
         set_number = st.number_input("set number", value = set_number, min_value = 1, step = 1, disabled = True)
     weight = st.number_input("weight", value = weight, min_value = 0.0, step = 0.5)
-    reps = st.number_input("reps", value = reps, min_value = 0, step = 1)
+    reps = st.number_input("reps", value = reps, min_value = 1, step = 1)
     rpe = st.number_input("RPE", value = rpe, max_value = 10.0, step = 0.5)
 
     col1, col2 = st.columns(2)

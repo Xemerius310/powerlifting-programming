@@ -55,9 +55,11 @@ def get_supabase_data():
     st.markdown("## Variations")
     st.dataframe(variations_df)
     
+    user_id = st.session_state["user_id"]
+    
     # training log
     training_log_query = execute_query(
-        supabase.table("training_log").select("*"), ttl = 0
+        supabase.table("training_log").select("*").eq("user_id", user_id), ttl = 0
     )
 
     actual_progression_df = pd.DataFrame(training_log_query.data)
@@ -151,12 +153,8 @@ def calculate_planned_progression():
                              .sort_values(by = ["base_lift", "date"])
                              # join microcycle weight increments
                              .merge(variations_df[["base_lift", "microcycle_increment"]].drop_duplicates(), on = "base_lift", how = "inner")
-                            #  .set_index("date")
     )
 
-    # base_lift_progression["override_group"] = base_lift_progression["override_1RM"].groupby("base_lift").isna().cumsum()
-
-    # base_lift_progression["planned_1RM"] = base_lift_progression.groupby("base_lift")["1RM"].cumsum()
 
     st.markdown("## Base Lift Progression")
     st.write(base_lift_progression)
@@ -166,6 +164,7 @@ def calculate_planned_progression():
 
     # join actual_progression_df with program_df to get planned weight, reps, RPE and variations_df to get variation_pct_of_1RM 
     actual_progression_df = (actual_progression_df
+                             .drop(columns = ["user_id"])
                              .merge(program_df, on = ["exercise", "date", "set_type"], suffixes = ("_actual", "_planned"))
                              .drop(columns = ["sets"])
                              .merge(variations_df, left_on = "exercise", right_on = "variation")
@@ -345,7 +344,8 @@ if st.button("load gsheets data"):
 if st.button("load supabase data"):
     supabase = st.session_state["supabase"]
 
-    if supabase.auth.get_user():
+    if "user_id" in st.session_state:
+        user_id = st.session_state["user_id"]
         
         get_supabase_data()
         calculate_planned_progression()

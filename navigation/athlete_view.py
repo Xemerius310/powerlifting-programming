@@ -9,11 +9,13 @@ today = pd.to_datetime("today").normalize()
 supabase = st.session_state["supabase"]
 
 if "program_df" not in st.session_state:
+    # st.write("program_df not in session state")
     if supabase.auth.get_user():
         if not "user_id" in st.session_state:
             get_user_id()
 
         user_id = st.session_state["user_id"]
+    #    st.write(user_id)
 
         get_supabase_data()
         calculate_planned_progression()
