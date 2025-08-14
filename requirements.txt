@@ -5,3 +5,4 @@ st-gsheets-connection==0.1.0
 streamlit-cookies-controller
 st-supabase-connection
 streamlit-js
+gotrue
