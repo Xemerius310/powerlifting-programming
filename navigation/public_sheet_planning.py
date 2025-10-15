@@ -21,11 +21,11 @@ if "metadata_spreadsheet_url" in st.session_state:
 def get_supabase_data():
     supabase = st.session_state["supabase"]
 
-    spreadsheet_links_query = execute_query(
-        supabase.table("spreadsheet_links").select("*"), ttl = 0
-    )
+    spreadsheet_links_query = supabase.table("spreadsheet_links").select("*")#, ttl = 0
+    #)
+    spreadsheet_links_response = spreadsheet_links_query.execute()
 
-    metadata_df = pd.DataFrame(spreadsheet_links_query.data)
+    metadata_df = pd.DataFrame(spreadsheet_links_response.data)
     metadata_df.set_index("spreadsheet", inplace = True)
     st.write(metadata_df)
 
@@ -58,11 +58,10 @@ def get_supabase_data():
     user_id = st.session_state["user_id"]
     
     # training log
-    training_log_query = execute_query(
-        supabase.table("training_log").select("*").eq("user_id", user_id), ttl = 0
-    )
+    training_log_query = supabase.table("training_log").select("*").eq("user_id", user_id)
+    training_log_response = training_log_query.execute()
 
-    actual_progression_df = pd.DataFrame(training_log_query.data)
+    actual_progression_df = pd.DataFrame(training_log_response.data)
 
     actual_progression_df["date"] = pd.to_datetime(actual_progression_df["date"])
     st.session_state["actual_progression_raw"] = actual_progression_df
