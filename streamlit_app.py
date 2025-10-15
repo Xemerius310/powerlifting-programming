@@ -24,9 +24,10 @@ def get_user_id():
     auth_id = user_response.user.id
 
     # get user data from user table in database, based on the user's auth_id
-    user_data = execute_query(
-        supabase.table("user").select("id, username").eq("auth_id", auth_id), ttl = 0
-    )
+    # user_data = execute_query(
+    user_data_request = supabase.table("user").select("id, username").eq("auth_id", auth_id)#, ttl = 0
+    #)
+    user_data = user_data_request.execute()
     st.session_state["username"] = user_data.data[0].get("username")
     st.session_state["user_id"] = user_data.data[0].get("id")
 
